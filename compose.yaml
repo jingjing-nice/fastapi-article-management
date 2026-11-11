@@ -1,0 +1,37 @@
+# compose.yaml：决定 API 和 PostgreSQL 两个容器如何连接、端口如何映射、数据存在哪里
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:-articles_db}
+      DB_NAME: ${DB_NAME:-article_management}
+      DB_PASSWORD: ${DB_PASSWORD:?请在 .env 中配置 DB_PASSWORD}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:18
+    ports:
+      - "127.0.0.1:5433:5432"
+    environment:
+      POSTGRES_USER: ${DB_USER:-articles_db}
+      POSTGRES_DB: ${DB_NAME:-article_management}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-articles_db}
+      PGTZ: UTC
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"
+      interval: 5s
+      timeout: 5s
+      retries: 15
+
+volumes:
+  postgres_data:
