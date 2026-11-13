@@ -12,9 +12,15 @@ from fastapi import HTTPException, status
 from typing import Any
 
 
-def create_article(data: ArticleCreate, session: Session) -> Article:
+def create_article(
+    data: ArticleCreate,
+    session: Session,
+    owner_id: int | None,
+) -> Article:
 
-    article = Article.model_validate(data)  # 将请求数据转换为 Article 模型对象
+    article = Article.model_validate(
+        data, update={"owner_id": owner_id}
+    )  # 将请求数据转换为 Article 模型对象
 
     try:
         article_repository.create_article(article=article, session=session)
@@ -35,7 +41,7 @@ def create_article(data: ArticleCreate, session: Session) -> Article:
 # 查询文章
 def get_article_by_id(article_id: int, session: Session) -> Article:
 
-    article = article_repository.get_article_by_id(
+    article = article_repository.get_visible_article(
         article_id=article_id, session=session
     )
     if article is None:
@@ -50,6 +56,7 @@ def get_article_by_id(article_id: int, session: Session) -> Article:
 # 获取文章列表
 def list_articles(
     session: Session,
+    owner_id: int | None,
     page: int = 1,  # 页码
     page_size: int = 10,  # 每页数量
     name: str | None = None,  # 搜索关键词
@@ -60,6 +67,7 @@ def list_articles(
 
     articles = article_repository.list_articles(
         session=session,
+        owner_id=owner_id,
         offset=offset,
         limit=page_size,
         name=name,
@@ -68,7 +76,7 @@ def list_articles(
     )
 
     total = article_repository.count_articles(
-        session=session, name=name, article_status=article_status
+        session=session, owner_id=owner_id, name=name, article_status=article_status
     )
 
     return ArticlePage(
@@ -80,9 +88,16 @@ def list_articles(
 
 
 # 更新文章
-def update_article(session: Session, article_id: int, data: ArticleUpdate) -> Article:
+def update_article(
+    session: Session,
+    article_id: int,
+    data: ArticleUpdate,
+    owner_id: int | None,
+) -> Article:
     # 查询文章是否存在
-    article = get_article_by_id(article_id=article_id, session=session)
+    article = get_visible_article(
+        article_id=article_id, session=session, owner_id=owner_id
+    )
 
     # # 只提取请求中实际提交的字段，保留显式提交的 None
     changes = data.model_dump(exclude_unset=True)
@@ -113,9 +128,15 @@ def update_article(session: Session, article_id: int, data: ArticleUpdate) -> Ar
 
 
 # 删除文章
-def delete_article(session: Session, article_id: int) -> None:
+def delete_article(
+    session: Session,
+    article_id: int,
+    owner_id: int | None,
+) -> None:
     # 查询文章是否存在
-    article = get_article_by_id(article_id=article_id, session=session)
+    article = get_visible_article(
+        article_id=article_id, session=session, owner_id=owner_id
+    )
 
     try:
         article_repository.delete_article(session=session, article=article)
@@ -126,3 +147,23 @@ def delete_article(session: Session, article_id: int) -> None:
         # 回滚事务
         session.rollback()
         raise
+
+
+# 供管理员修改、删除逻辑
+def get_visible_article(
+    article_id: int,
+    session: Session,
+    owner_id: int | None,
+) -> Article:
+    article = get_article_by_id(
+        article_id=article_id,
+        session=session,
+    )
+
+    if owner_id is not None and article.owner_id != owner_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="文章不存在",
+        )
+
+    return article

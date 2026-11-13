@@ -33,5 +33,8 @@ class Article(SQLModel, table=True):
         sa_column_kwargs={"onupdate": get_current_time},
     )
 
+    # foreign_key声明是外建，index记录是索引
+    owner_id: int | None = Field(default=None, foreign_key="users.id", index=True)
+
 
 # Code below omitted 👇

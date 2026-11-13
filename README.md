@@ -187,3 +187,42 @@ summary 可传 null 清空；name、content、status 不允许为 null。
 新增成功返回 201，查询与更新成功返回 200。
 删除成功返回 204，响应体为空。
 文章不存在返回 404，参数错误返回 422。
+
+
+
+
+
+需要。**修改本机代码不会自动更新阿里云上的服务**，需要上传改动并重新构建。
+
+**1. Mac 本地终端上传代码：**
+
+```bash
+cd /Users/jingjing/Desktop/python/fastapi-article-management
+
+scp -r app root@114.55.143.126:/opt/article-management/
+```
+
+如果修改了依赖，也上传：
+
+```bash
+scp pyproject.toml uv.lock root@114.55.143.126:/opt/article-management/
+```
+
+**2. 服务器终端重新构建并启动 API：**
+
+```bash
+cd /opt/article-management
+docker compose build api
+docker compose up -d --no-deps api
+```
+
+**3. 验证更新：**
+
+```bash
+curl -f https://api.jing-aichat.xyz/health
+docker compose logs --tail=50 api
+```
+
+更新会短暂重启 API，数据库数据卷会保留。**不要执行 `docker compose down -v`。**
+
+如果修改了数据库表结构，还需要编写、上传迁移文件，备份数据库后执行 `alembic upgrade head`；只改 Python 模型不会自动修改表。

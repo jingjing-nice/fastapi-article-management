@@ -1,5 +1,8 @@
 from functools import lru_cache
 
+from pydantic import Field, SecretStr
+
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy import URL
 
@@ -14,6 +17,9 @@ class Settings(BaseSettings):
     sql_echo: bool = False
     log_level: str = "INFO"
     test_database_url: str | None = None
+
+    jwt_secret_key: SecretStr
+    jwt_access_token_expire_minutes: int = Field(default=30, gt=0)
 
     model_config = SettingsConfigDict(
         env_file=".env", env_file_encoding="utf-8", extra="ignore"

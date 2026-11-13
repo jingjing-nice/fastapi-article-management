@@ -6,6 +6,8 @@ from typing import Literal
 
 from datetime import datetime
 
+from pydantic import ConfigDict
+
 """
 没有 table=True：只校验请求数据，不创建表
 """
@@ -13,6 +15,8 @@ from datetime import datetime
 
 # 接收、校验请求数据
 class ArticleCreate(SQLModel):
+    model_config = ConfigDict(extra="forbid")
+
     name: str = Field(min_length=1, max_length=100)
     content: str = Field(min_length=1)
     summary: str | None = Field(default=None, max_length=500)
@@ -20,6 +24,8 @@ class ArticleCreate(SQLModel):
 
 
 class ArticlePublic(SQLModel):
+    model_config = ConfigDict(extra="forbid")
+
     id: int
     name: str
     content: str
@@ -27,6 +33,7 @@ class ArticlePublic(SQLModel):
     status: Literal["draft", "published"]
     created_at: datetime
     updated_at: datetime
+    owner_id: int | None
 
 
 class ArticlePage(SQLModel):
