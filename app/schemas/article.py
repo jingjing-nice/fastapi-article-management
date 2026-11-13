@@ -33,12 +33,15 @@ class ArticlePublic(SQLModel):
     status: Literal["draft", "published"]
     created_at: datetime
     updated_at: datetime
-    owner_id: int | None
+
+
+class ArticleListItem(ArticlePublic):
+    operations: list[Literal["edit", "delete"]] | None = None
 
 
 class ArticlePage(SQLModel):
     total: int
-    items: list[ArticlePublic]
+    items: list[ArticleListItem]
     page: int
     page_size: int
 

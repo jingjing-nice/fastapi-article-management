@@ -5,7 +5,7 @@ from sqlmodel import Session
 
 from app.models.article import Article
 from app.repositories import article_repository
-from app.schemas.article import ArticleCreate, ArticlePage, ArticlePublic, ArticleUpdate
+from app.schemas.article import ArticleCreate, ArticlePage, ArticleListItem, ArticleUpdate
 
 from fastapi import HTTPException, status
 
@@ -41,7 +41,7 @@ def create_article(
 # 查询文章
 def get_article_by_id(article_id: int, session: Session) -> Article:
 
-    article = article_repository.get_visible_article(
+    article = article_repository.get_article_by_id(
         article_id=article_id, session=session
     )
     if article is None:
@@ -61,7 +61,7 @@ def list_articles(
     page_size: int = 10,  # 每页数量
     name: str | None = None,  # 搜索关键词
     article_status: str | None = None,  # 搜索文章状态
-    sort: str | None = None,
+    role: str | None = None,
 ) -> ArticlePage:
     offset = (page - 1) * page_size
 
@@ -72,15 +72,22 @@ def list_articles(
         limit=page_size,
         name=name,
         article_status=article_status,
-        sort=sort,
     )
 
     total = article_repository.count_articles(
         session=session, owner_id=owner_id, name=name, article_status=article_status
     )
 
+    items = [
+        ArticleListItem.model_validate(
+            article,
+            update={"operations": ["edit", "delete"]} if role == "admin" else {},
+        )
+        for article in articles
+    ]
+
     return ArticlePage(
-        items=[ArticlePublic.model_validate(article) for article in articles],
+        items=items,
         total=total,
         page=page,
         page_size=page_size,

@@ -5,17 +5,26 @@ from sqlmodel import SQLModel, Session, create_engine
 
 from app.core.database import get_session
 from app.main import app
+from app.core.auth import get_current_user
+from app.models.user import Users
 
 
 @pytest.fixture
 def api():
     engine = create_engine('sqlite://', connect_args={'check_same_thread': False}, poolclass=StaticPool)
     SQLModel.metadata.create_all(engine)
+    with Session(engine) as session:
+        user = Users(username="review", password_hash="unused", role="admin")
+        session.add(user)
+        session.commit()
+        session.refresh(user)
+        session.expunge(user)
     def session_override():
         with Session(engine) as session:
             yield session
     previous = app.dependency_overrides.copy()
     app.dependency_overrides[get_session] = session_override
+    app.dependency_overrides[get_current_user] = lambda: user
     try:
         with TestClient(app, raise_server_exceptions=False) as client:
             yield client
@@ -51,18 +60,19 @@ def test_patch_contract(api):
     assert api.get(path).json()['content'] == '更新'
 
 
-def test_filters_sort_and_pagination(api):
+def test_filters_and_pagination(api):
     first = create(api, name='100% Python', status='published')
     second = create(api, name='Python other')
     assert api.get('/api/v1/articles', params={'name': '%', 'status': 'published'}).json()['total'] == 1
-    for sort in ('created_at', 'updated_at', '-created_at', '-updated_at'):
-        response = api.get('/api/v1/articles', params={'sort': sort, 'page_size': 1})
+    for page, expected in ((1, first), (2, second)):
+        response = api.get('/api/v1/articles', params={'page': page, 'page_size': 1})
         assert response.status_code == 200
         data = response.json()
         assert data['total'] == 2
         assert len(data['items']) == 1
-        assert data['items'][0]['id'] == (second if sort.startswith('-') else first)['id']
-    assert api.get('/api/v1/articles', params={'sort': 'unsafe'}).status_code == 422
+        assert data['items'][0]['id'] == expected['id']
+        assert 'owner_id' not in data['items'][0]
+        assert data['items'][0]['operations'] == ['edit', 'delete']
     for params in ({'page': 0}, {'page_size': 101}, {'status': 'invalid'}):
         assert api.get('/api/v1/articles', params=params).status_code == 422
     assert api.get('/api/v1/articles?page=10').json()['items'] == []

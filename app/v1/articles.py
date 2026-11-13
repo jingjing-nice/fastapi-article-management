@@ -40,7 +40,7 @@ def get_article_by_id(
     session: SessionDep,
     current_user: CurrentUserDep,
 ):
-    return article_service.get_article_by_id(
+    return article_service.get_visible_article(
         article_id=article_id,
         session=session,
         owner_id=(None if current_user.role == "admin" else current_user.id),
@@ -50,6 +50,7 @@ def get_article_by_id(
 @router.get(
     "",
     response_model=ArticlePage,
+    response_model_exclude_unset=True,
 )
 def list_articles(
     session: SessionDep,
@@ -57,8 +58,6 @@ def list_articles(
     page: Annotated[int, Query(ge=1)] = 1,
     page_size: Annotated[int, Query(ge=1, le=100)] = 10,
     name: Annotated[str | None, Query(max_length=100)] = None,
-    sort: Literal["created_at", "-created_at", "updated_at", "-updated_at"]
-    | None = None,
     article_status: Annotated[
         Literal["draft", "published"] | None, Query(alias="status")
     ] = None,
@@ -70,7 +69,7 @@ def list_articles(
         page_size=page_size,
         name=name,
         article_status=article_status,
-        sort=sort,
+        role=current_user.role,
     )
 
 

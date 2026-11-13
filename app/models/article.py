@@ -5,6 +5,8 @@ from datetime import UTC, datetime
 from sqlalchemy import DateTime
 
 
+
+
 def get_current_time() -> datetime:
     return datetime.now(UTC)
 
@@ -35,6 +37,8 @@ class Article(SQLModel, table=True):
 
     # foreign_key声明是外建，index记录是索引
     owner_id: int | None = Field(default=None, foreign_key="users.id", index=True)
+
+    # operations: list[Literal["edit", "delete"]]
 
 
 # Code below omitted 👇

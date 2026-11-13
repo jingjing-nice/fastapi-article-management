@@ -13,6 +13,8 @@ from sqlmodel import Session
 
 from app.core.database import get_session
 from app.main import app
+from app.core.auth import get_current_user
+from app.models.user import Users
 
 
 @pytest.fixture(scope="session")
@@ -57,8 +59,13 @@ def client(db_session: Session) -> Generator[TestClient, None, None]:
     def override_get_session():
         yield db_session
 
+    user = Users(username="test-reader", password_hash="unused", role="user")
+    db_session.add(user)
+    db_session.flush()
+
     previous_overrides = app.dependency_overrides.copy()
     app.dependency_overrides[get_session] = override_get_session
+    app.dependency_overrides[get_current_user] = lambda: user
 
     try:
         with TestClient(app) as test_client:
